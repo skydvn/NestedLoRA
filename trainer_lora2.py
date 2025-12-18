@@ -299,13 +299,13 @@ def train_epoch(model, loader, optimizer, criterion, device, epoch, use_wandb=Tr
             'acc': f'{100. * correct / total:.2f}%'
         })
 
-        # Log to wandb every 50 batches
-        if use_wandb and WANDB_AVAILABLE and batch_idx % 50 == 0:
-            wandb.log({
-                'batch_train_loss': loss.item(),
-                'batch_train_acc': 100. * correct / total,
-                'batch': epoch * len(loader) + batch_idx
-            })
+        # # Log to wandb every 50 batches
+        # if use_wandb and WANDB_AVAILABLE and batch_idx % 50 == 0:
+        #     wandb.log({
+        #         'batch_train_loss': loss.item(),
+        #         'batch_train_acc': 100. * correct / total,
+        #         'batch': epoch * len(loader) + batch_idx
+        #     })
 
     avg_loss = total_loss / len(loader)
     accuracy = 100. * correct / total
@@ -384,11 +384,11 @@ def print_trainable_parameters(model):
 def main(
         project_name='tiny-vit-lora',
         experiment_name=None,
-        rank=8,
+        rank=32,
         lora_alpha=16,
         learning_rate=1e-3,
         batch_size=128,
-        num_epochs=50,
+        num_epochs=100,
         use_wandb=True,
         save_dir='./checkpoints'
 ):
@@ -616,10 +616,10 @@ if __name__ == '__main__':
         project_name='tiny-vit-lora-cifar10',
         experiment_name=f'{model}_{dataset}_{rank}',
         rank=rank,
-        lora_alpha=16,
+        lora_alpha=32,
         learning_rate=1e-3,
         batch_size=128,
-        num_epochs=50,
+        num_epochs=100,
         use_wandb=True
     )
 
