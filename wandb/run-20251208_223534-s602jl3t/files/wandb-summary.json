@@ -1,0 +1,1 @@
+{"epoch": 100, "train_loss": 2.4399244937750386, "train_acc": 10.994, "test_loss": 2.4237173659892024, "test_acc": 10.68, "lora_lr": 2.467198171342e-07, "base_update_lr": 0.0001, "_timestamp": 1765208871.4151337, "_runtime": 737.2880477905273, "_step": 99, "best_accuracy": 10.68, "best_epoch": 1, "_wandb": {"runtime": 735}}

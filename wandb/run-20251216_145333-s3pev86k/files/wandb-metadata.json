@@ -1,0 +1,208 @@
+{
+    "os": "Linux-6.8.0-88-generic-x86_64-with-glibc2.35",
+    "python": "3.10.12",
+    "heartbeatAt": "2025-12-16T07:53:34.566394",
+    "startedAt": "2025-12-16T07:53:33.323232",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/skydvn/Documents/git/NestedLearning/nestedlora/train_s_nlora_gpm.py",
+    "codePathLocal": "train_s_nlora_gpm.py",
+    "codePath": "train_s_nlora_gpm.py",
+    "git": {
+        "remote": "https://github.com/skydvn/nestedlora",
+        "commit": "57c6348dfafb670c4e361f4f8f5c0614b9ec1253"
+    },
+    "email": "mduongbkhn@gmail.com",
+    "root": "/home/skydvn/Documents/git/NestedLearning/nestedlora",
+    "host": "Skyd",
+    "username": "skydvn",
+    "executable": "/home/skydvn/Documents/git/.denv/bin/python3",
+    "cpu_count": 24,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 2134.6545312499998,
+        "min": 800.0,
+        "max": 4575.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 880.123,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 801.365,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 2462.748,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 4418.487,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 799.627,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 4399.955,
+            "min": 800.0,
+            "max": 5400.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5400.0
+        },
+        {
+            "current": 4399.955,
+            "min": 800.0,
+            "max": 5400.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5400.0
+        },
+        {
+            "current": 933.978,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 2521.496,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 4400.0,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 5200.0
+        },
+        {
+            "current": 1554.703,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 3600.066,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 2886.658,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 2510.396,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 1993.939,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 2547.833,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 799.386,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 801.219,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 2809.555,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 1850.563,
+            "min": 800.0,
+            "max": 3900.0
+        },
+        {
+            "current": 921.35,
+            "min": 800.0,
+            "max": 3900.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 937.3305015563965,
+            "used": 459.5541114807129
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 4070 Laptop GPU",
+            "memory_total": 8585740288
+        }
+    ],
+    "memory": {
+        "total": 15.355823516845703
+    }
+}

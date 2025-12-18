@@ -210,3 +210,4 @@ __marimo__/
 data/
 checkpoints/
 .venv/
+wandb/

@@ -1,0 +1,72 @@
+wandb_version: 1
+
+architecture:
+  desc: null
+  value: TinyViT-MultiRankLoRA-GPM
+ranks:
+  desc: null
+  value:
+  - 16
+  - 8
+  - 4
+lora_alphas:
+  desc: null
+  value:
+  - 16
+  - 8
+  - 4
+use_gpm:
+  desc: null
+  value: true
+gpm_threshold:
+  desc: null
+  value: 0.95
+gpm_memory_strength:
+  desc: null
+  value: 1.0
+use_gpm_hooks:
+  desc: null
+  value: true
+epochs_per_lora:
+  desc: null
+  value: 100
+num_cycles:
+  desc: null
+  value: 1
+total_epochs:
+  desc: null
+  value: 300
+batch_size:
+  desc: null
+  value: 128
+update_strategy:
+  desc: null
+  value: epoch_sequential_gpm
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.12
+    cli_version: 0.15.12
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1765724432.418398
+    t:
+      1:
+      - 1
+      - 41
+      - 55
+      2:
+      - 1
+      - 41
+      - 55
+      3:
+      - 2
+      - 13
+      - 16
+      - 23
+      4: 3.10.12
+      5: 0.15.12
+      8:
+      - 5
+      13: linux-x86_64

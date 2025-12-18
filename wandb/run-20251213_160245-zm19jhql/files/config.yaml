@@ -1,0 +1,72 @@
+wandb_version: 1
+
+architecture:
+  desc: null
+  value: TinyViT-MultiRankLoRA-EpochSequential
+ranks:
+  desc: null
+  value:
+  - 4
+  - 8
+  - 16
+lora_alphas:
+  desc: null
+  value:
+  - 4
+  - 8
+  - 16
+lr_lora1:
+  desc: null
+  value: 0.003
+lr_lora2:
+  desc: null
+  value: 0.001
+lr_lora3:
+  desc: null
+  value: 0.0005
+epochs_per_lora:
+  desc: null
+  value: 33
+custom_epoch_pattern:
+  desc: null
+  value: null
+num_cycles:
+  desc: null
+  value: 1
+total_epochs:
+  desc: null
+  value: 99
+batch_size:
+  desc: null
+  value: 128
+update_strategy:
+  desc: null
+  value: epoch_sequential
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.12
+    cli_version: 0.15.12
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1765616565.897382
+    t:
+      1:
+      - 1
+      - 41
+      - 55
+      2:
+      - 1
+      - 41
+      - 55
+      3:
+      - 2
+      - 13
+      - 16
+      - 23
+      4: 3.10.12
+      5: 0.15.12
+      8:
+      - 5
+      13: linux-x86_64

@@ -1,0 +1,71 @@
+wandb_version: 1
+
+architecture:
+  desc: null
+  value: TinyViT
+dataset:
+  desc: null
+  value: CIFAR-10
+method:
+  desc: null
+  value: hierarchical_lora
+ranks:
+  desc: null
+  value:
+  - 4
+  - 8
+  - 16
+frequencies:
+  desc: null
+  value:
+  - 100
+  - 10
+  - 1
+lora_alpha:
+  desc: null
+  value: 16
+lora_lrs:
+  desc: null
+  value:
+  - 0.001
+  - 0.001
+  - 0.001
+base_update_lr:
+  desc: null
+  value: 0.0001
+batch_size:
+  desc: null
+  value: 128
+num_epochs:
+  desc: null
+  value: 100
+inner_steps:
+  desc: null
+  value: 5
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.12
+    cli_version: 0.15.12
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1765211388.250448
+    t:
+      1:
+      - 1
+      - 41
+      - 55
+      2:
+      - 1
+      - 41
+      - 55
+      3:
+      - 13
+      - 16
+      - 23
+      4: 3.10.12
+      5: 0.15.12
+      8:
+      - 5
+      13: linux-x86_64
