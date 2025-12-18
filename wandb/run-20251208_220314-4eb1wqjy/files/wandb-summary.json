@@ -1,1 +1,0 @@
-{"epoch": 50, "train_loss": 2.3640639952686437, "train_acc": 14.614, "test_loss": 2.3332029143466224, "test_acc": 16.31, "learning_rate": 9.866357858642198e-07, "_timestamp": 1765206583.7409549, "_runtime": 389.4253897666931, "_step": 49, "best_accuracy": 16.31, "best_epoch": 1, "_wandb": {"runtime": 388}}

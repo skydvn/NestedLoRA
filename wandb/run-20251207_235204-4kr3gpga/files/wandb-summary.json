@@ -1,1 +1,0 @@
-{"epoch": 50, "current_rank": 63, "active_lora_params": 387072, "train_loss": 0.9097264416687324, "train_acc": 67.676, "test_loss": 0.8229942766925956, "test_acc": 70.99, "learning_rate": 9.866357858642198e-07, "_timestamp": 1765126832.82629, "_runtime": 508.2221088409424, "_step": 56, "best_accuracy": 71.81, "best_epoch": 41, "rank_change": 63, "_wandb": {"runtime": 507}}
