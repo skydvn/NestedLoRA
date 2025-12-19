@@ -49,8 +49,8 @@ class GPMEpochSequentialConfig:
     """
 
     # Model architecture
-    ranks = [16, 32, 64] # [4, 16, 64]
-    lora_alphas = [16, 32, 64] # [4, 16, 64]
+    ranks = [8, 8, 8] # [64, 64, 64] # [4, 16, 64]
+    lora_alphas = [8, 8, 8] # [64, 64, 64] # [4, 16, 64]
     lora_dropout = 0.1
 
     # Learning rates for each LoRA
