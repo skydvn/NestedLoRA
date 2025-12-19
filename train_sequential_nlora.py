@@ -45,8 +45,8 @@ class EpochSequentialConfig:
     """
 
     # Model architecture
-    ranks = [4, 8, 16]
-    lora_alphas = [4, 8, 16]
+    ranks = [4, 16, 64]
+    lora_alphas = [4, 16, 64]
     lora_dropout = 0.1
 
     # Learning rates for each LoRA
@@ -513,7 +513,7 @@ if __name__ == '__main__':
     # Example 1: Balanced - Each LoRA gets equal epochs
     # ========================================================================
     config.use_custom_allocation = False
-    config.epochs_per_lora = 33  # Each LoRA trains for 50 epochs
+    config.epochs_per_lora = 100  # Each LoRA trains for 50 epochs
     config.num_cycles = 1  # Repeat 3 times
     # Total: 50 epochs × 3 LoRAs × 1 cycles = 150 epochs
     # Pattern: L1(10) -> L2(10) -> L3(10) -> L1(10) -> L2(10) -> L3(10) -> L1(10) -> L2(10) -> L3(10)
