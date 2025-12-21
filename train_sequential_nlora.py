@@ -70,7 +70,7 @@ class EpochSequentialConfig:
     custom_epoch_pattern = [10, 10, 10]  # Epochs per LoRA in one cycle
 
     # Training
-    batch_size = 128
+    batch_size = 256
     weight_decay = 0.01
     grad_clip = 1.0
 
@@ -175,15 +175,22 @@ def evaluate(model, loader, criterion, device):
     correct = 0
     total = 0
 
-    # Per-class accuracy
-    class_correct = [0] * 10
-    class_total = [0] * 10
+    # Per-class accuracy - initialize outside loop
+    num_classes = None
+    class_correct = None
+    class_total = None
 
     with torch.no_grad():
         for images, labels in tqdm(loader, desc='Evaluating'):
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             loss = criterion(outputs, labels)
+            
+            # Initialize per-class tracking on first batch
+            if num_classes is None:
+                num_classes = outputs.size(1)
+                class_correct = [0] * num_classes
+                class_total = [0] * num_classes
 
             total_loss += loss.item()
             _, predicted = outputs.max(1)
@@ -192,7 +199,7 @@ def evaluate(model, loader, criterion, device):
 
             # Per-class accuracy
             for i in range(labels.size(0)):
-                label = labels[i]
+                label = labels[i].item()
                 class_correct[label] += (predicted[i] == label).item()
                 class_total[label] += 1
 
@@ -338,7 +345,6 @@ def main(
         schedulers = [None, None, None]
 
     # Get data loaders
-    print("\nLoading CIFAR-10 dataset...")
     train_loader, test_loader = get_data_loaders(batch_size=config.batch_size)
 
     # Loss function

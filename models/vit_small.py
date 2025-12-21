@@ -7,14 +7,14 @@ from torchvision import datasets, transforms
 
 # Tiny ViT Configuration for CIFAR-10
 class TinyViTConfig:
-    img_size = 32
-    patch_size = 4  # 32/4 = 8x8 patches
+    img_size = 224
+    patch_size = 16  # 32/4 = 8x8 patches
     num_patches = (img_size // patch_size) ** 2  # 64 patches
-    embed_dim = 128  # Small embedding dimension
-    num_heads = 4
-    num_layers = 4
-    mlp_ratio = 2
-    num_classes = 10
+    embed_dim = 192  # Small embedding dimension
+    num_heads = 3
+    num_layers = 12
+    mlp_ratio = 4
+    num_classes = 100
     dropout = 0.1
 
 

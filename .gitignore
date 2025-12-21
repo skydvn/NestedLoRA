@@ -211,6 +211,7 @@ data/
 checkpoints/
 .venv/
 wandb/
+imagenet/
 
 # checkpoints
 checkpoints_direct_merge/
