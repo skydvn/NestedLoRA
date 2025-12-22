@@ -19,7 +19,6 @@ This is different from traditional LoRA where A,B stay fixed!
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
 import json
@@ -27,8 +26,7 @@ from datetime import datetime
 
 # Import the original TinyViT components
 from models.vit_small import (
-    TinyViT, TinyViTConfig, PatchEmbedding,
-    TransformerBlock
+    TinyViT, TinyViTConfig
 )
 from trainer import get_data_loaders
 

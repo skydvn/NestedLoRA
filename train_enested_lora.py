@@ -1,5 +1,7 @@
-# train_epoch_sequential_gpm.py - Epoch-Sequential LoRA with GPM for Orthogonality
-# Train each LoRA sequentially while ensuring orthogonality using Gradient Projection Memory
+# train_enested_lora.py - FIXED VERSION
+# Enhanced GPM Training with LoRA on ALL layers
+# Includes LoRA on PatchEmbedding and LayerNorm
+# FIXED: EnhancedGPMHook now properly follows GPMHook pattern
 
 import torch
 import torch.nn as nn
@@ -19,57 +21,48 @@ except ImportError:
 # Import model components
 from models.vit_small import TinyViTConfig
 from trainer import get_data_loaders
-
-from utils.nested_lora import (
-    TinyViTMultiRankLoRA,
+from utils.e_nested_lora import (
+    TinyViTEnhancedMultiRankLoRA,
     create_multi_rank_optimizers,
-    print_multi_rank_parameter_stats,
+    print_enhanced_parameter_stats,
     compute_grad_norm
 )
 
+# Import GPM utilities
 from utils.orthogonal import (
     GradientProjectionMemory,
-    GPMHook,
-    analyze_lora_orthogonality,
     print_gpm_status
 )
 
 
 # ============================================================================
-# Configuration for GPM-Enhanced Epoch-Sequential Training
+# Enhanced Configuration
 # ============================================================================
 
-class GPMEpochSequentialConfig:
-    """
-    Configuration for GPM-enhanced epoch-sequential training
-
-    Each LoRA is trained sequentially, with GPM ensuring orthogonality
-    to previously trained LoRAs.
-    """
+class EnhancedGPMConfig:
+    """Configuration for enhanced GPM training with LoRA on all layers"""
 
     # Model architecture
-    ranks = [4, 8, 16] # [8, 8, 8] # [64, 64, 64] # [4, 16, 64]
-    lora_alphas = [4, 8, 16] # [64, 64, 64] # [4, 16, 64]
+    ranks = [4, 8, 16]
+    lora_alphas = [4, 8, 16]
     lora_dropout = 0.1
 
-    # Learning rates for each LoRA
+    # Learning rates (may need adjustment due to more parameters)
     lr_lora1 = 3e-3  # Rank 4
     lr_lora2 = 1e-3  # Rank 8
     lr_lora3 = 5e-4  # Rank 16
 
     # Epoch-based cycling
-    epochs_per_lora = 33  # Train each LoRA for this many epochs
-    num_cycles = 1  # How many complete cycles
+    epochs_per_lora = 33
+    num_cycles = 1
 
     # GPM Configuration
-    use_gpm = True  # Enable GPM
-    gpm_threshold = 0.95  # Variance threshold for SVD (0.90-0.99)
-    gpm_memory_strength = 1.0  # Projection strength (0.0-1.0)
-    gpm_num_batches_importance = 100  # Batches for computing importance
-    gpm_num_batches_projection = 50  # Batches for computing projections
-
-    # Alternative: Use hooks for automatic projection
-    use_gpm_hooks = True  # If True, use hooks; if False, manual projection
+    use_gpm = True
+    gpm_threshold = 0.95
+    gpm_memory_strength = 1.0
+    gpm_num_batches_importance = 100
+    gpm_num_batches_projection = 50
+    use_gpm_hooks = True
 
     # Training
     batch_size = 128
@@ -81,14 +74,122 @@ class GPMEpochSequentialConfig:
     restart_scheduler_on_switch = True
 
     # Analysis
-    analyze_orthogonality_every_n_epochs = 5  # Analyze orthogonality
+    analyze_orthogonality_every_n_epochs = 5
 
 
 # ============================================================================
-# Training Function with GPM
+# Enhanced GPM Hook (FIXED - follows GPMHook pattern exactly)
 # ============================================================================
 
-def train_epoch_with_gpm(
+class EnhancedGPMHook:
+    """
+    GPM hook that works with the enhanced architecture
+
+    FIXED: Now properly follows the GPMHook pattern from orthogonal.py
+    The key is that the hook function is defined inline and captures
+    the necessary context WITHOUT calling project_gradients incorrectly.
+    """
+
+    def __init__(self, gpm: GradientProjectionMemory, model: TinyViTEnhancedMultiRankLoRA,
+                 current_lora_idx: int):
+        self.gpm = gpm
+        self.model = model
+        self.current_lora_idx = current_lora_idx
+        self.hooks = []
+
+    def register_hooks(self):
+        """Register backward hooks on current LoRA parameters"""
+
+        if len(self.gpm.locked_loras) == 0:
+            # No projection needed
+            return
+
+        print(f"\n  📌 Registering GPM hooks for LoRA {self.current_lora_idx + 1}")
+        print(f"     Projecting away from locked LoRAs: {[i + 1 for i in self.gpm.locked_loras]}")
+
+        # Build a mapping of parameter id to (module_name, param_name)
+        param_to_info = {}
+
+        for name, module in self.model.named_modules():
+            if hasattr(module, 'loras'):
+                if self.current_lora_idx < len(module.loras):
+                    lora = module.loras[self.current_lora_idx]
+
+                    # Map all possible LoRA parameters
+                    param_checks = []
+
+                    # Standard LoRA parameters (Linear, Conv2d)
+                    if hasattr(lora, 'lora_A'):
+                        param_checks.append(('lora_A', lora.lora_A))
+                    if hasattr(lora, 'lora_B'):
+                        param_checks.append(('lora_B', lora.lora_B))
+
+                    # LayerNorm parameters
+                    if hasattr(lora, 'lora_scale_A'):
+                        param_checks.append(('lora_scale_A', lora.lora_scale_A))
+                    if hasattr(lora, 'lora_scale_B'):
+                        param_checks.append(('lora_scale_B', lora.lora_scale_B))
+                    if hasattr(lora, 'lora_shift_A'):
+                        param_checks.append(('lora_shift_A', lora.lora_shift_A))
+                    if hasattr(lora, 'lora_shift_B'):
+                        param_checks.append(('lora_shift_B', lora.lora_shift_B))
+
+                    for param_name, param in param_checks:
+                        param_to_info[id(param)] = (name, param_name)
+
+        # Create hook function
+        def projection_hook(grad):
+            """Hook function that projects gradients"""
+            if grad is None:
+                return grad
+
+            # Get parameter info from the gradient's parameter
+            # We need to find which parameter this gradient belongs to
+            param_id = None
+            for p in self.model.get_lora_parameters(self.current_lora_idx):
+                if p.grad is grad:
+                    param_id = id(p)
+                    break
+
+            if param_id is None or param_id not in param_to_info:
+                return grad
+
+            module_name, param_name = param_to_info[param_id]
+
+            # Project gradient
+            original_shape = grad.shape
+            grad_flat = grad.flatten()
+
+            # Project away from all locked LoRAs
+            for locked_idx in self.gpm.locked_loras:
+                key = self.gpm.get_feature_key(locked_idx, f"{module_name}.{param_name}")
+
+                if key in self.gpm.projection_matrices:
+                    P = self.gpm.projection_matrices[key]
+                    projected_component = P @ grad_flat
+                    grad_flat = grad_flat - self.gpm.memory_strength * projected_component
+
+            return grad_flat.reshape(original_shape)
+
+        # Register hooks on all current LoRA parameters
+        current_params = self.model.get_lora_parameters(self.current_lora_idx)
+
+        for param in current_params:
+            hook = param.register_hook(projection_hook)
+            self.hooks.append(hook)
+
+    def remove_hooks(self):
+        """Remove all registered hooks"""
+        for hook in self.hooks:
+            hook.remove()
+        self.hooks = []
+
+
+# ============================================================================
+# Training Function
+# ============================================================================
+
+def train_epoch_enhanced(
         model,
         loader,
         optimizer,
@@ -100,24 +201,7 @@ def train_epoch_with_gpm(
         gpm: GradientProjectionMemory = None,
         use_hooks: bool = True
 ):
-    """
-    Train a single LoRA for one epoch with GPM projection
-
-    Args:
-        model: TinyViT model
-        loader: Data loader
-        optimizer: Optimizer for the active LoRA
-        criterion: Loss function
-        device: Device to train on
-        epoch: Current epoch number
-        lora_idx: Index of the LoRA being trained (0, 1, or 2)
-        lora_name: Name for display ('LoRA1', 'LoRA2', 'LoRA3')
-        gpm: GPM instance (None if GPM disabled)
-        use_hooks: Whether to use automatic hooks or manual projection
-
-    Returns:
-        avg_loss, accuracy, grad_norm
-    """
+    """Train a single LoRA for one epoch with enhanced architecture"""
 
     model.train()
     total_loss = 0
@@ -128,7 +212,7 @@ def train_epoch_with_gpm(
     # Register GPM hooks if using automatic projection
     gpm_hook = None
     if gpm is not None and use_hooks and len(gpm.locked_loras) > 0:
-        gpm_hook = GPMHook(gpm, model, lora_idx)
+        gpm_hook = EnhancedGPMHook(gpm, model, lora_idx)
         gpm_hook.register_hooks()
 
     pbar = tqdm(loader, desc=f'Epoch {epoch} [{lora_name}]')
@@ -148,6 +232,8 @@ def train_epoch_with_gpm(
 
         # Manual GPM projection (if not using hooks)
         if gpm is not None and not use_hooks:
+            # Use the project_gradients method from GPM correctly
+            # It expects (model, current_lora_idx)
             gpm.project_gradients(model, lora_idx)
 
         # Compute gradient norm
@@ -236,20 +322,20 @@ def evaluate(model, loader, criterion, device):
 
 
 # ============================================================================
-# Main Training Function with GPM
+# Main Training Function
 # ============================================================================
 
 def main(
-        project_name='gpm-epoch-sequential-lora',
+        project_name='enhanced-gpm-lora',
         experiment_name=None,
         config=None,
         use_wandb=True,
         save_dir='./checkpoints'
 ):
-    """Main training function with GPM-enhanced orthogonality"""
+    """Main training function with enhanced architecture"""
 
     if config is None:
-        config = GPMEpochSequentialConfig()
+        config = EnhancedGPMConfig()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     os.makedirs(save_dir, exist_ok=True)
@@ -262,7 +348,7 @@ def main(
     if experiment_name is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         gpm_str = f'gpm{config.gpm_threshold:.2f}' if config.use_gpm else 'nogpm'
-        experiment_name = f'epoch_seq_{gpm_str}_{config.epochs_per_lora}x{config.num_cycles}_{timestamp}'
+        experiment_name = f'enhanced_{gpm_str}_{config.epochs_per_lora}x{config.num_cycles}_{timestamp}'
 
     # Initialize W&B
     if use_wandb and WANDB_AVAILABLE:
@@ -271,7 +357,8 @@ def main(
             project=project_name,
             name=experiment_name,
             config={
-                'architecture': 'TinyViT-MultiRankLoRA-GPM',
+                'architecture': 'TinyViT-Enhanced-MultiRankLoRA-GPM',
+                'lora_on': 'all_layers_including_patch_embed_and_layernorm',
                 'ranks': config.ranks,
                 'lora_alphas': config.lora_alphas,
                 'use_gpm': config.use_gpm,
@@ -282,38 +369,35 @@ def main(
                 'num_cycles': config.num_cycles,
                 'total_epochs': total_epochs,
                 'batch_size': config.batch_size,
-                'update_strategy': 'epoch_sequential_gpm'
+                'update_strategy': 'epoch_sequential_gpm_enhanced'
             }
         )
         print(f"\n✓ W&B initialized: {wandb.run.url}\n")
 
-    # Create model
+    # Create enhanced model
     print(f"\n{'=' * 70}")
-    print(f"Creating TinyViT with GPM-Enhanced Epoch-Sequential LoRA")
+    print(f"Creating Enhanced TinyViT with LoRA on ALL layers")
     print(f"{'=' * 70}")
-    print(f"GPM Configuration:")
-    print(f"  Enabled: {config.use_gpm}")
-    if config.use_gpm:
-        print(f"  Variance Threshold: {config.gpm_threshold}")
-        print(f"  Memory Strength: {config.gpm_memory_strength}")
-        print(f"  Use Hooks: {config.use_gpm_hooks}")
-    print(f"\nTraining Strategy:")
-    print(f"  Epochs per LoRA: {config.epochs_per_lora}")
-    print(f"  Number of Cycles: {config.num_cycles}")
-    print(f"  Total Epochs: {total_epochs}")
+    print(f"LoRA applied to:")
+    print(f"  ✓ PatchEmbedding (Conv2d)")
+    print(f"  ✓ All LayerNorm layers")
+    print(f"  ✓ Multi-head attention (Q, K, V, projection)")
+    print(f"  ✓ MLP layers")
+    print(f"  ✓ Classification head")
 
     vit_config = TinyViTConfig()
-    model = TinyViTMultiRankLoRA(
+    model = TinyViTEnhancedMultiRankLoRA(
         vit_config,
         ranks=config.ranks,
         lora_alphas=config.lora_alphas,
         lora_dropout=config.lora_dropout
     ).to(device)
 
+    # Store config on model
     model.config = config
 
     # Print parameter statistics
-    trainable_params, total_params = print_multi_rank_parameter_stats(model)
+    trainable_params, total_params = print_enhanced_parameter_stats(model)
 
     # Initialize GPM
     gpm = None
@@ -329,12 +413,15 @@ def main(
     print("Creating Optimizers")
     print(f"{'=' * 70}")
 
-    optimizer1, optimizer2, optimizer3 = create_multi_rank_optimizers(
+    optimizers = create_multi_rank_optimizers(
         model,
         lrs=[config.lr_lora1, config.lr_lora2, config.lr_lora3],
         weight_decay=config.weight_decay
     )
-    optimizers = [optimizer1, optimizer2, optimizer3]
+
+    for i, opt in enumerate(optimizers):
+        lr = opt.param_groups[0]['lr']
+        print(f"LoRA {i + 1} optimizer: lr={lr:.6f}")
 
     # Create schedulers
     if config.use_scheduler:
@@ -359,11 +446,11 @@ def main(
     total_epochs_per_lora = [0, 0, 0]
 
     print(f"\n{'=' * 70}")
-    print(f"Starting Training with GPM")
+    print(f"Starting Enhanced Training with GPM")
     print(f"{'=' * 70}\n")
 
     # ========================================================================
-    # Main Training Loop: Cycle through LoRAs with GPM
+    # Main Training Loop
     # ========================================================================
 
     for cycle in range(config.num_cycles):
@@ -379,8 +466,14 @@ def main(
             lora_name = f"LoRA{lora_idx + 1}"
             num_epochs_for_this_lora = config.epochs_per_lora
 
+            # Set only this LoRA as active
+            active = [False, False, False]
+            active[lora_idx] = True
+            model.set_active_loras(active)
+
             print(f"\n{'─' * 70}")
             print(f"Training {lora_name} (rank={config.ranks[lora_idx]})")
+            print(f"Active LoRAs: {[i + 1 for i, a in enumerate(active) if a]}")
             print(f"{'─' * 70}")
 
             if gpm is not None and len(gpm.locked_loras) > 0:
@@ -405,7 +498,7 @@ def main(
                       f'({lora_name} epoch {epoch_in_phase + 1}/{num_epochs_for_this_lora}) ---')
 
                 # Train with GPM
-                train_loss, train_acc, grad_norm = train_epoch_with_gpm(
+                train_loss, train_acc, grad_norm = train_epoch_enhanced(
                     model,
                     train_loader,
                     optimizers[lora_idx],
@@ -418,10 +511,12 @@ def main(
                     use_hooks=config.use_gpm_hooks
                 )
 
-                # Evaluate
+                # Evaluate with all LoRAs active
+                model.set_active_loras([True, True, True])
                 test_loss, test_acc, per_class_acc = evaluate(
                     model, test_loader, criterion, device
                 )
+                model.set_active_loras(active)  # Restore active state
 
                 # Step scheduler
                 if config.use_scheduler and schedulers[lora_idx] is not None:
@@ -437,11 +532,6 @@ def main(
                 print(f'  Test:  Loss={test_loss:.4f}, Acc={test_acc:.2f}%')
                 print(f'  Grad Norm: {grad_norm:.4f}')
                 print(f'  Learning Rate: {current_lr:.6f}')
-
-                # Analyze orthogonality periodically
-                if (global_epoch % config.analyze_orthogonality_every_n_epochs == 0 and
-                        len(gpm.locked_loras) > 0):
-                    analyze_lora_orthogonality(model, gpm)
 
                 # Log to W&B
                 if use_wandb and WANDB_AVAILABLE:
@@ -459,7 +549,6 @@ def main(
                         'num_locked_loras': len(gpm.locked_loras) if gpm else 0,
                     }
 
-                    # Add orthogonality metrics
                     if gpm is not None:
                         orth_metrics = gpm.get_orthogonality_metrics(model)
                         log_dict.update(orth_metrics)
@@ -476,18 +565,15 @@ def main(
                         'cycle': cycle,
                         'active_lora': lora_idx,
                         'model_state_dict': model.state_dict(),
-                        'optimizer1_state_dict': optimizer1.state_dict(),
-                        'optimizer2_state_dict': optimizer2.state_dict(),
-                        'optimizer3_state_dict': optimizer3.state_dict(),
+                        'optimizer_states': [opt.state_dict() for opt in optimizers],
                         'best_acc': best_acc,
                         'total_epochs_per_lora': total_epochs_per_lora,
                         'config': vars(config)
                     }
 
-                    checkpoint_path = os.path.join(save_dir, 'best_gpm_model.pth')
+                    checkpoint_path = os.path.join(save_dir, 'best_enhanced_model.pth')
                     torch.save(checkpoint, checkpoint_path)
 
-                    # Save GPM state
                     if gpm is not None:
                         gpm_path = os.path.join(save_dir, 'gpm_state.pth')
                         gpm.save(gpm_path)
@@ -524,25 +610,14 @@ def main(
                 )
 
                 print(f"\n  ✓ {lora_name} is now locked and protected")
-                print(f"  ✓ Future LoRAs will be projected to be orthogonal to {lora_name}")
 
-                # Analyze orthogonality after locking
-                if len(gpm.locked_loras) > 1:
-                    analyze_lora_orthogonality(model, gpm)
-
-        # End of cycle summary
+        # End of cycle
         print(f"\n{'=' * 70}")
         print(f"End of Cycle {cycle + 1}")
         print(f"{'=' * 70}")
         if gpm is not None:
             print_gpm_status(gpm)
         print(f"Best Test Accuracy: {best_acc:.2f}%")
-
-    # Final analysis
-    print(f"\n{'=' * 70}")
-    print(f"FINAL ORTHOGONALITY ANALYSIS")
-    print(f"{'=' * 70}")
-    analyze_lora_orthogonality(model, gpm)
 
     # Final summary
     print(f'\n{"=" * 70}')
@@ -570,60 +645,46 @@ def main(
 
 if __name__ == '__main__':
     # Create configuration
-    config = GPMEpochSequentialConfig()
+    config = EnhancedGPMConfig()
 
-    # ========================================================================
-    # GPM Configuration Options
-    # ========================================================================
-
-    # Option 1: Standard GPM (recommended)
+    # Configure GPM
     config.use_gpm = True
-    config.gpm_threshold = 0.95  # Keep 95% of variance
-    config.gpm_memory_strength = 1.0  # Full projection
-    config.use_gpm_hooks = True  # Automatic projection
+    config.gpm_threshold = 0.95
+    config.gpm_memory_strength = 1.0
+    config.use_gpm_hooks = True
 
-    # Option 2: Lighter GPM
-    # config.use_gpm = True
-    # config.gpm_threshold = 0.90        # Keep 90% of variance (fewer components)
-    # config.gpm_memory_strength = 0.8   # Partial projection
-
-    # Option 3: No GPM (baseline)
-    # config.use_gpm = False
-
-    # ========================================================================
-    # Training Configuration
-    # ========================================================================
-
+    # Training settings
     config.epochs_per_lora = 200
     config.num_cycles = 1
     config.analyze_orthogonality_every_n_epochs = 5
 
     print("\n" + "=" * 70)
-    print("GPM-Enhanced Epoch-Sequential Multi-Rank LoRA Training")
+    print("Enhanced LoRA Training (PatchEmbedding + LayerNorm + All Layers)")
     print("=" * 70)
+    print(f"\nLoRA Applied To:")
+    print(f"  ✓ PatchEmbedding convolution")
+    print(f"  ✓ All LayerNorm layers")
+    print(f"  ✓ Attention QKV and projection")
+    print(f"  ✓ MLP layers")
+    print(f"  ✓ Classification head")
     print(f"\nGPM Configuration:")
     print(f"  Enabled: {config.use_gpm}")
     if config.use_gpm:
         print(f"  Variance Threshold: {config.gpm_threshold}")
         print(f"  Memory Strength: {config.gpm_memory_strength}")
-        print(f"  Use Hooks: {config.use_gpm_hooks}")
     print(f"\nTraining:")
     print(f"  Epochs per LoRA: {config.epochs_per_lora}")
     print(f"  Cycles: {config.num_cycles}")
-    print(f"  Total Epochs: {config.epochs_per_lora * 3 * config.num_cycles}")
     print("=" * 70 + "\n")
-
-    project_name = "tiny-vit-lora-cifar10"
 
     # Run training
     model, best_acc, gpm = main(
-        project_name=project_name,
-        experiment_name=f'gpm_epoch_seq_{config.epochs_per_lora}x{config.num_cycles}',
+        project_name="tiny-vit-lora-cifar10",
+        experiment_name=f'enhanced_all_layers_{config.epochs_per_lora}epochs',
         config=config,
         use_wandb=True,
         save_dir='checkpoints'
     )
 
     print(f'\n🎉 Training finished! Best accuracy: {best_acc:.2f}%')
-    print(f'   Strategy: GPM-Enhanced Epoch-Sequential')
-    print(f'   LoRAs are orthogonal: {config.use_gpm}')
+    print(f'   Enhanced architecture with LoRA on ALL layers')

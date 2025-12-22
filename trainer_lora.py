@@ -11,16 +11,12 @@ This implementation:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
 from tqdm import tqdm
 import math
-import copy
 
 # Import the original TinyViT components
 from models.vit_small import (
-    TinyViT, TinyViTConfig, PatchEmbedding, 
-    TransformerBlock
+    TinyViTConfig, PatchEmbedding
 )
 from trainer import get_data_loaders
 

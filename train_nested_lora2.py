@@ -836,7 +836,7 @@ if __name__ == '__main__':
         # Logging
         use_wandb=True,
         project_name = "tiny-vit-lora-cifar10" ,
-        save_dir='./checkpoints'
+        save_dir='checkpoints'
     )
 
     print(f'\n🎉 Training finished! Best accuracy: {best_acc:.2f}%')

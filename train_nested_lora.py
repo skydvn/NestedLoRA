@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
 from datetime import datetime
@@ -576,7 +575,7 @@ if __name__ == '__main__':
         experiment_name=f'iter_steps_{config.step_lora1}_{config.step_lora2}_{config.step_lora3}',
         config=config,
         use_wandb=True,
-        save_dir='./checkpoints'
+        save_dir='checkpoints'
     )
 
     print(f'\n🎉 Training finished! Best accuracy: {best_acc:.2f}%')
