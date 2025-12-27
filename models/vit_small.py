@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import timm
 
 
 # Tiny ViT Configuration for CIFAR-10
@@ -16,6 +17,142 @@ class TinyViTConfig:
     mlp_ratio = 4
     num_classes = 100
     dropout = 0.1
+
+
+def load_pretrained_vit_tiny(model, pretrained_model_name='vit_tiny_patch16_224'):
+    """
+    Load pretrained ViT-Tiny weights into the frozen base layers of MultiRankLoRA model
+    """
+    print(f"\nLoading pretrained weights from {pretrained_model_name}...")
+
+    pretrained_vit = timm.create_model(pretrained_model_name, pretrained=True)
+    pretrained_state_dict = pretrained_vit.state_dict()
+    model_state_dict = model.state_dict()
+
+    # =========================
+    # Counters
+    # =========================
+    loaded_tensors = 0
+    skipped_tensors = 0
+    loaded_blocks = 0
+    total_blocks = model.config.num_layers
+
+    def safe_copy(dst_key, src_key):
+        nonlocal loaded_tensors, skipped_tensors
+        if src_key in pretrained_state_dict and dst_key in model_state_dict:
+            try:
+                model_state_dict[dst_key].copy_(pretrained_state_dict[src_key])
+                loaded_tensors += 1
+                return True
+            except Exception as e:
+                print(f"✗ Shape mismatch: {dst_key} <- {src_key} ({e})")
+        else:
+            print(f"✗ Missing key: {dst_key} or {src_key}")
+        skipped_tensors += 1
+        return False
+
+    # =========================
+    # Embeddings
+    # =========================
+    embedding_keys = {
+        'patch_embed.proj.weight': 'patch_embed.proj.weight',
+        'patch_embed.proj.bias': 'patch_embed.proj.bias',
+        'cls_token': 'cls_token',
+        'pos_embed': 'pos_embed',
+    }
+
+    print("\nLoading embeddings:")
+    for src, dst in embedding_keys.items():
+        if safe_copy(dst, src):
+            print(f"✓ Loaded {src}")
+
+    # =========================
+    # Transformer blocks
+    # =========================
+    print("\nLoading transformer blocks:")
+    for layer_idx in range(total_blocks):
+        success = True
+
+        success &= safe_copy(
+            f'blocks.{layer_idx}.attn.qkv.base_linear.weight',
+            f'blocks.{layer_idx}.attn.qkv.weight'
+        )
+        success &= safe_copy(
+            f'blocks.{layer_idx}.attn.qkv.base_linear.bias',
+            f'blocks.{layer_idx}.attn.qkv.bias'
+        )
+
+        success &= safe_copy(
+            f'blocks.{layer_idx}.attn.proj.base_linear.weight',
+            f'blocks.{layer_idx}.attn.proj.weight'
+        )
+        success &= safe_copy(
+            f'blocks.{layer_idx}.attn.proj.base_linear.bias',
+            f'blocks.{layer_idx}.attn.proj.bias'
+        )
+
+        success &= safe_copy(
+            f'blocks.{layer_idx}.mlp.fc1.base_linear.weight',
+            f'blocks.{layer_idx}.mlp.fc1.weight'
+        )
+        success &= safe_copy(
+            f'blocks.{layer_idx}.mlp.fc1.base_linear.bias',
+            f'blocks.{layer_idx}.mlp.fc1.bias'
+        )
+
+        success &= safe_copy(
+            f'blocks.{layer_idx}.mlp.fc2.base_linear.weight',
+            f'blocks.{layer_idx}.mlp.fc2.weight'
+        )
+        success &= safe_copy(
+            f'blocks.{layer_idx}.mlp.fc2.base_linear.bias',
+            f'blocks.{layer_idx}.mlp.fc2.bias'
+        )
+
+        success &= safe_copy(
+            f'blocks.{layer_idx}.norm1.weight',
+            f'blocks.{layer_idx}.norm1.weight'
+        )
+        success &= safe_copy(
+            f'blocks.{layer_idx}.norm1.bias',
+            f'blocks.{layer_idx}.norm1.bias'
+        )
+
+        success &= safe_copy(
+            f'blocks.{layer_idx}.norm2.weight',
+            f'blocks.{layer_idx}.norm2.weight'
+        )
+        success &= safe_copy(
+            f'blocks.{layer_idx}.norm2.bias',
+            f'blocks.{layer_idx}.norm2.bias'
+        )
+
+        if success:
+            loaded_blocks += 1
+            print(f"✓ Loaded block {layer_idx}")
+        else:
+            print(f"⚠ Partial load for block {layer_idx}")
+
+    # =========================
+    # Final norm
+    # =========================
+    print("\nLoading final norm:")
+    safe_copy('norm.weight', 'norm.weight')
+    safe_copy('norm.bias', 'norm.bias')
+
+    # =========================
+    # Summary
+    # =========================
+    print("\n" + "=" * 50)
+    print("✅ PRETRAINED WEIGHT LOADING SUMMARY")
+    print(f"• Transformer blocks loaded: {loaded_blocks}/{total_blocks}")
+    print(f"• Tensors loaded successfully: {loaded_tensors}")
+    print(f"• Tensors skipped/failed: {skipped_tensors}")
+    print("• Classification head: NOT loaded (expected)")
+    print("• LoRA parameters: untouched and trainable")
+    print("=" * 50)
+
+    return model
 
 
 class PatchEmbedding(nn.Module):

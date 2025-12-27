@@ -11,13 +11,13 @@ from datetime import datetime
 # Import W&B if available
 try:
     import wandb
-    WANDB_AVAILABLE = True
+    WANDB_AVAILABLE = False
 except ImportError:
     WANDB_AVAILABLE = False
     print("WARNING: wandb not installed. Install with: pip install wandb")
 
 # Import model components
-from models.vit_small import TinyViTConfig
+from models.vit_small import TinyViTConfig, load_pretrained_vit_tiny
 from trainer import get_data_loaders
 from utils.nested_lora import (
     TinyViTMultiRankLoRA,
@@ -35,12 +35,12 @@ class EpochSequentialConfig:
     """Configuration for epoch-based sequential multi-rank LoRA training"""
 
     # Model architecture - AUTOMATICALLY ADAPTS TO LENGTH
-    ranks = [4, 8, 16, 32, 64]
-    lora_alphas = [4, 8, 16, 32, 64]
+    ranks = [4, 8, 16]
+    lora_alphas = [4, 8, 16]
     lora_dropout = 0.1
 
     # Learning rates - AUTOMATICALLY ADAPTS TO LENGTH
-    learning_rates = [3e-3, 1e-3, 5e-4, 3e-4, 2e-4]
+    learning_rates = [3e-3, 1e-3, 5e-4]
 
     # Epoch-based cycling
     epochs_per_lora = 10
@@ -248,6 +248,9 @@ def main(project_name='epoch-sequential-lora', experiment_name=None, config=None
         lora_alphas=config.lora_alphas,
         lora_dropout=config.lora_dropout
     ).to(device)
+
+    # Load pretrained weights
+    model = load_pretrained_vit_tiny(model, pretrained_model_name='vit_tiny_patch16_224')
 
     model.config = config
     trainable_params, total_params = print_multi_rank_parameter_stats(model)
