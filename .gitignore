@@ -218,4 +218,4 @@ checkpoints_direct_merge/
 checkpoints_dynamic/
 checkpoints_hierarchical/
 checkpoints_hierarchical_normal/
-checkpoints_lora_gradient/
+checkpoints_lora_gradient/test.bin
